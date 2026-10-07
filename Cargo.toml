@@ -1,0 +1,19 @@
+[package]
+name = "libscsi"
+version = "0.0.1"
+description = "Cross-platform SCSI intermediate layer."
+edition = "2024"
+rust-version = "1.85.0"
+resolver = "2"
+license = "MIT"
+documentation = "https://docs.rs/libscsi"
+repository = "https://github.com/Chacka-Lab/libscsi"
+readme = "README.md"
+keywords = ["scsi", "cross-platform"]
+categories = ["filesystem", "os::windows-apis", "os::linux-apis", "os::macos-apis"]
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = [
+    "Win32_Devices_DeviceAndDriverInstallation",
+    "Win32_System_IO",
+] }

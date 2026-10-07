@@ -1,2 +1,5 @@
 # libscsi
-Cross-platform SCSI intermediate layer
+
+Cross-platform SCSI intermediate layer.
+
+But not ready yet.
