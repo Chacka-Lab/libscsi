@@ -2,8 +2,8 @@ mod transport;
 mod types;
 
 pub use types::{
-    Direction, MAX_CDB_LEN, MAX_SENSE_LEN, OpenOpts, ScsiCommand, ScsiDeviceInfo, ScsiDeviceType,
-    ScsiResult, ScsiStatus,
+    Cdb, Direction, MAX_CDB_LEN, MAX_SENSE_LEN, OpenOpts, ScsiCommand, ScsiResult, ScsiStatus,
+    Sense,
 };
 
 /// Library-level error type.
@@ -11,6 +11,7 @@ pub use types::{
 pub enum Error {
     Io(std::io::Error),
     InvalidParameter(&'static str),
+    Internal(&'static str),
 }
 
 impl std::fmt::Display for Error {
@@ -18,6 +19,7 @@ impl std::fmt::Display for Error {
         match self {
             Error::Io(e) => write!(f, "I/O error: {e}"),
             Error::InvalidParameter(msg) => write!(f, "invalid parameter: {msg}"),
+            Error::Internal(msg) => write!(f, "internal error: {msg}"),
         }
     }
 }
@@ -52,44 +54,25 @@ impl ScsiDevice {
     /// | Linux    | `/dev/sg0`, `/dev/sda`                   |
     /// | macOS    | `/dev/disk0`                             |
     ///
-    /// Pass `OpenOptions::default()` for shared (non-exclusive) access.
+    /// Pass `OpenOpts::default()` for shared (non-exclusive) access.
     pub fn open(path: &std::path::Path, opts: &OpenOpts) -> Result<Self, Error> {
         transport::Device::open(path, opts).map(ScsiDevice)
     }
 
     /// Issue a SCSI command and wait for it to complete.
     ///
-    /// For `Direction::In` pre-fill `cmd.data` with `vec![0u8; <expected bytes>]`
-    /// and read the response from `ScsiResult::data`.
+    /// For `Direction::In` pre-fill `cmd.data` with `vec![0u8; <expected bytes>]`.
+    /// On success `ScsiResult::data` is already truncated to the number of bytes
+    /// the device actually returned — no separate length field is needed.
     pub fn execute(&mut self, cmd: ScsiCommand) -> Result<ScsiResult, Error> {
-        if cmd.cdb_len == 0 || cmd.cdb_len as usize > MAX_CDB_LEN {
-            return Err(Error::InvalidParameter("cdb_len must be 1–16"));
-        }
         self.0.execute(cmd)
     }
-}
-
-/// Enumerate SCSI devices visible to the current process.
-///
-/// Returns a list of devices with their paths, types, and identity strings
-/// (vendor/product/revision from INQUIRY when available).
-///
-/// ## Platform-specific behavior
-///
-/// - **Windows**: uses `SetupDiGetClassDevs` with `GUID_DEVINTERFACE_SCSI_RAW`
-///   (or a similar SCSI interface GUID) and queries device properties + INQUIRY.
-/// - **Linux**: scans `/sys/class/scsi_device/` and `/dev/sg*` or `/dev/sd*`.
-/// - **macOS**: uses IOKit to enumerate SCSI services and their BSD names.
-pub fn list_devices() -> Result<Vec<ScsiDeviceInfo>, Error> {
-    transport::list_devices()
 }
 
 // ── Test helpers ─────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 impl ScsiDevice {
-    /// Wrap a platform test handle so tests can exercise the public API without
-    /// a real SCSI device node.  Only available on Windows for now.
     #[cfg(target_os = "windows")]
     fn new_test() -> std::io::Result<Self> {
         transport::Device::new_test().map(ScsiDevice)
@@ -139,45 +122,15 @@ mod tests {
         assert!(matches!(result, Err(Error::Io(_))));
     }
 
-    // ── ScsiDevice::execute — input validation ────────────────────────────────
+    // ── ScsiDevice::execute — reaches IOCTL layer ─────────────────────────────
 
+    /// A valid command against a non-SCSI handle must fail at the IOCTL level.
     #[cfg(target_os = "windows")]
     #[test]
-    fn execute_cdb_len_zero_rejected() {
+    fn execute_valid_cdb_reaches_ioctl() {
         let mut dev = ScsiDevice::new_test().expect("temp file");
         let cmd = ScsiCommand {
-            cdb: [0u8; MAX_CDB_LEN],
-            cdb_len: 0,
-            direction: Direction::None,
-            data: vec![],
-            timeout_secs: None,
-        };
-        assert!(matches!(dev.execute(cmd), Err(Error::InvalidParameter(_))));
-    }
-
-    #[cfg(target_os = "windows")]
-    #[test]
-    fn execute_cdb_len_too_large_rejected() {
-        let mut dev = ScsiDevice::new_test().expect("temp file");
-        let cmd = ScsiCommand {
-            cdb: [0u8; MAX_CDB_LEN],
-            cdb_len: (MAX_CDB_LEN + 1) as u8,
-            direction: Direction::None,
-            data: vec![],
-            timeout_secs: None,
-        };
-        assert!(matches!(dev.execute(cmd), Err(Error::InvalidParameter(_))));
-    }
-
-    /// A valid cdb_len on a non-SCSI handle must fail at the IOCTL level
-    /// (Error::Io), not at the validation gate.
-    #[cfg(target_os = "windows")]
-    #[test]
-    fn execute_valid_cdb_len_reaches_ioctl() {
-        let mut dev = ScsiDevice::new_test().expect("temp file");
-        let cmd = ScsiCommand {
-            cdb: [0u8; MAX_CDB_LEN],
-            cdb_len: 6,
+            cdb: Cdb::new([0u8; 6]).unwrap(),
             direction: Direction::None,
             data: vec![],
             timeout_secs: None,

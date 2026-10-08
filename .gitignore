@@ -18,3 +18,6 @@ rustc-ice-*.txt
 
 # RustRover
 .idea/
+
+# Claude Code
+.claude/

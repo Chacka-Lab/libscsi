@@ -1,6 +1,6 @@
 [package]
 name = "libscsi"
-version = "0.0.1"
+version = "0.0.2"
 description = "Cross-platform SCSI intermediate layer."
 edition = "2024"
 rust-version = "1.85.0"
@@ -14,6 +14,10 @@ categories = ["filesystem", "os::windows-apis", "os::linux-apis", "os::macos-api
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = [
-    "Win32_Devices_DeviceAndDriverInstallation",
     "Win32_System_IO",
+    "Win32_Devices_DeviceAndDriverInstallation",
+    "Win32_Foundation",
 ] }
+
+[dependencies]
+clap = { version = "4.6.7", features = ["derive"] }

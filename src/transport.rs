@@ -16,15 +16,8 @@ mod windows;
 compile_error!("libscsi: unsupported platform (only windows/linux/macos are supported)");
 
 #[cfg(target_os = "linux")]
-pub(crate) use self::linux::Device;
+pub use self::linux::Device;
 #[cfg(target_os = "macos")]
-pub(crate) use self::macos::Device;
+pub use self::macos::Device;
 #[cfg(target_os = "windows")]
-pub(crate) use self::windows::Device;
-
-#[cfg(target_os = "linux")]
-pub(crate) use self::linux::list_devices;
-#[cfg(target_os = "macos")]
-pub(crate) use self::macos::list_devices;
-#[cfg(target_os = "windows")]
-pub(crate) use self::windows::list_devices;
+pub use self::windows::Device;
