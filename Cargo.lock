@@ -118,7 +118,7 @@ checksum = "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78"
 
 [[package]]
 name = "libscsi"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "clap",
  "libc",
