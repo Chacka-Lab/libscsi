@@ -66,7 +66,7 @@ impl Default for OpenOpts {
 /// Maximum CDB size this library supports.
 pub const MAX_CDB_LEN: usize = 16;
 /// Sense buffer size allocated per command.
-pub const MAX_SENSE_LEN: usize = 32;
+pub const MAX_SENSE_LEN: usize = 252;
 
 /// A validated SCSI CDB (Command Descriptor Block).
 ///
@@ -190,7 +190,7 @@ pub struct ScsiResult {
     pub data: Vec<u8>,
 }
 
-// ── Test helpers ─────────────────────────────────────────────────────────────
+// ── Test helpers ────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -219,7 +219,7 @@ mod tests {
         assert_eq!(ScsiStatus::from(0x01), ScsiStatus::Unknown(0x01));
     }
 
-    // ── Cdb ───────────────────────────────────────────────────────────────────
+    // ── Cdb ─────────────────────────────────────────────────────────────────
 
     #[test]
     fn cdb_new_valid_lengths() {
@@ -250,7 +250,7 @@ mod tests {
         assert_eq!(cdb.as_ref(), &[0x12, 0x34]);
     }
 
-    // ── Sense ──────────────────────────────────────────────────────────────────
+    // ── Sense ───────────────────────────────────────────────────────────────
 
     #[test]
     fn sense_as_bytes_truncates_to_len() {

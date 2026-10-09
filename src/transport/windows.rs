@@ -14,7 +14,7 @@ use crate::types::{
 };
 use crate::{Error, ScsiResult};
 
-// ── IOCTL / access constants ─────────────────────────────────────────────────
+// ── IOCTL / access constants ────────────────────────────────────────────────
 
 const IOCTL_SCSI_PASS_THROUGH_DIRECT: u32 = 0x0004_D014;
 const SCSI_IOCTL_DATA_OUT: u8 = 0; // host → device
@@ -33,20 +33,19 @@ const FILE_SHARE_WRITE: u32 = 0x0000_0002;
 
 #[repr(C)]
 struct ScsiPassThroughDirect {
-    length: u16,
-    scsi_status: u8,
-    path_id: u8,
-    target_id: u8,
-    lun: u8,
-    cdb_length: u8,
-    sense_info_length: u8, // in: capacity allocated; out: bytes written
-    data_in: u8,
-    data_transfer_length: u32,
-    timeout_value: u32,
-    // 64-bit: 4 bytes of implicit padding here before the pointer
-    data_buffer: *mut core::ffi::c_void,
-    sense_info_offset: u32, // byte offset from start of SptdBuffer
-    cdb: [u8; MAX_CDB_LEN],
+    length: u16,                         // [i] size of this struct (must be set)
+    scsi_status: u8,                     // [o] SCSI status byte
+    path_id: u8,                         // [i] SCSI bus number (0 for auto)
+    target_id: u8,                       // [i] target device ID (0 for auto)
+    lun: u8,                             // [i] logical unit number
+    cdb_length: u8,                      // [i] CDB length in bytes
+    sense_info_length: u8,               // [i] sense buffer capacity; [o] bytes written
+    data_in: u8,                         // [i] data transfer direction flag
+    data_transfer_length: u32,           // [i] requested bytes; [o] actual transferred
+    timeout_value: u32,                  // [i] timeout in seconds
+    data_buffer: *mut core::ffi::c_void, // [i] data buffer pointer
+    sense_info_offset: u32,              // [i] byte offset from start of SptdBuffer to sense
+    cdb: [u8; MAX_CDB_LEN],              // [i] CDB bytes
 }
 
 // Sense data is appended right after the SPTD struct so that a single
@@ -57,10 +56,10 @@ struct SptdBuffer {
     sense: [u8; MAX_SENSE_LEN],
 }
 
-// ── Device ───────────────────────────────────────────────────────────────────
+// ── Device ──────────────────────────────────────────────────────────────────
 
 pub struct Device {
-    file: std::fs::File,
+    fd: std::fs::File,
 }
 
 impl Device {
@@ -71,12 +70,12 @@ impl Device {
             FILE_SHARE_READ | FILE_SHARE_WRITE
         };
 
-        let file = std::fs::OpenOptions::new()
+        let fd = std::fs::OpenOptions::new()
             .share_mode(share)
             .access_mode(GENERIC_READ | GENERIC_WRITE)
             .open(path)?;
 
-        Ok(Device { file })
+        Ok(Device { fd })
     }
 
     pub fn execute(&mut self, mut cmd: ScsiCommand) -> Result<ScsiResult, Error> {
@@ -123,10 +122,10 @@ impl Device {
         let mut bytes_returned: u32 = 0;
 
         // RawHandle is *mut c_void on Windows, matching HANDLE in windows-sys 0.61.
-        let handle = self.file.as_raw_handle();
+        let handle = self.fd.as_raw_handle();
 
         // SAFETY: `buf` and `cmd.data` both outlive this call; `handle` is a
-        // valid, open device handle obtained from `self.file`.
+        // valid, open device handle obtained from `self.fd`.
         let ok = unsafe {
             DeviceIoControl(
                 handle,
@@ -170,7 +169,7 @@ impl Device {
     }
 }
 
-// ── Test helpers ─────────────────────────────────────────────────────────────
+// ── Test helpers ────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 impl Device {
@@ -181,7 +180,7 @@ impl Device {
             .write(true)
             .create(true)
             .open(&path)?;
-        Ok(Device { file })
+        Ok(Device { fd: file })
     }
 }
 

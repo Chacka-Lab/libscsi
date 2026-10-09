@@ -1,7 +1,7 @@
 //! Platform dispatch layer.
 //!
 //! Each platform module exposes a `Device` struct with the same interface:
-//! `Device::open(path: &str) -> Result<Device, Error>` and
+//! `Device::open(path: &std::path::Path) -> Result<Device, Error>` and
 //! `Device::execute(cmd: ScsiCommand) -> Result<ScsiResult, Error>`.
 //! This module re-exports the right one for the current target.
 

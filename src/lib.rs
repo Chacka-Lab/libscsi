@@ -69,7 +69,7 @@ impl ScsiDevice {
     }
 }
 
-// ── Test helpers ─────────────────────────────────────────────────────────────
+// ── Test helpers ────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 impl ScsiDevice {
@@ -83,7 +83,7 @@ impl ScsiDevice {
 mod tests {
     use super::*;
 
-    // ── Error type ────────────────────────────────────────────────────────────
+    // ── Error type ──────────────────────────────────────────────────────────
 
     #[test]
     fn error_display_invalid_parameter() {
@@ -111,7 +111,7 @@ mod tests {
         assert!(e.source().is_none());
     }
 
-    // ── ScsiDevice::open ──────────────────────────────────────────────────────
+    // ── ScsiDevice::open ────────────────────────────────────────────────────
 
     #[test]
     fn open_nonexistent_path_returns_io_error() {
@@ -122,7 +122,7 @@ mod tests {
         assert!(matches!(result, Err(Error::Io(_))));
     }
 
-    // ── ScsiDevice::execute — reaches IOCTL layer ─────────────────────────────
+    // ── ScsiDevice::execute — reaches IOCTL layer ───────────────────────────
 
     /// A valid command against a non-SCSI handle must fail at the IOCTL level.
     #[cfg(target_os = "windows")]

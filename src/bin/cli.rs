@@ -4,7 +4,7 @@ use libscsi::{Cdb, Direction, OpenOpts, ScsiCommand, ScsiDevice};
 #[derive(Parser, Debug)]
 #[command(
     name = "scsi-tool",
-    version = "v0.0.1",
+    version = "v0.0.2",
     about = "SCSI Command Tool based on libscsi."
 )]
 struct Cli {
@@ -16,7 +16,7 @@ struct Cli {
 enum Mode {
     /// Direct Mode
     Execute {
-        /// The device path for opening, similar to: /sys/block/sda/device.
+        /// The device path for opening, similar to: /dev/sg0 or /dev/sda.
         #[arg(short, long)]
         path: String,
 
@@ -24,22 +24,27 @@ enum Mode {
         #[arg(short, long)]
         cdb: String,
 
-        /// The data sent to the device. (Hex format, ignoring spaces)
+        /// The data sent to the device for OUT commands. (Hex format, ignoring spaces)
         #[arg(short, long)]
         data: Option<String>,
 
+        /// Pre-allocate a receive buffer of N bytes for IN commands.
+        /// Use this instead of --data when reading from the device.
+        #[arg(short, long)]
+        alloc: Option<usize>,
+
         /// The data direction. (0:None, 1:In, 2:Out)
-        #[arg(long)]
+        #[arg(short = 'o', long)]
         dir: Option<u8>,
 
-        /// Timeout duration(secs), must be a positive integer.
+        /// Timeout duration (secs), must be a positive integer.
         #[arg(short, long, value_parser = parse_positive_u64)]
         timeout: Option<u32>,
     },
 
     /// Interactive Mode (Terminal)
     Term {
-        /// Timeout duration(secs), must be a positive integer.
+        /// Timeout duration (secs), must be a positive integer.
         #[arg(short, long, value_parser = parse_positive_u64)]
         timeout: Option<u32>,
     },
@@ -99,6 +104,7 @@ fn main() {
             path,
             cdb,
             data,
+            alloc,
             dir,
             timeout,
         } => {
@@ -137,15 +143,23 @@ fn main() {
                 }
             };
 
-            let data = match data {
-                Some(s) => match from_hex(&s) {
+            if data.is_some() && alloc.is_some() {
+                eprintln!("--data and --alloc are mutually exclusive");
+                std::process::exit(2);
+            }
+
+            let data: Vec<u8> = if let Some(n) = alloc {
+                vec![0u8; n]
+            } else if let Some(s) = data {
+                match from_hex(&s) {
                     Ok(v) => v,
                     Err(e) => {
                         eprintln!("data hex: {}", e);
                         std::process::exit(2);
                     }
-                },
-                None => Vec::new(),
+                }
+            } else {
+                Vec::new()
             };
             let cmd: ScsiCommand = ScsiCommand {
                 cdb,
